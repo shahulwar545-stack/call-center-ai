@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>AI Call Compliance Dashboard</title>
+
+    <!-- ✅ FAVICON (PUT icon.ico INSIDE static FOLDER) -->
+    <link rel="icon" type="image/x-icon" href="/static/icon.ico">
+
+    <!-- ✅ FONT AWESOME ICONS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Segoe UI';
+            background: linear-gradient(135deg, #1f4037, #99f2c8);
+            margin: 0;
+            padding: 0;
+        }
+        
+        h1 {
+            text-align: center;
+            color: white;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: auto;
+        }
+        
+        .card {
+            background: white;
+            padding: 20px;
+            margin: 15px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            color: white;
+            margin: 5px;
+            display: inline-block;
+        }
+        
+        .green {
+            background: #28a745;
+        }
+        
+        .red {
+            background: #dc3545;
+        }
+        
+        .blue {
+            background: #007bff;
+        }
+        
+        .orange {
+            background: #ff9800;
+        }
+        
+        .keywords span {
+            background: #007bff;
+            color: white;
+            padding: 6px 12px;
+            margin: 4px;
+            border-radius: 15px;
+            display: inline-block;
+        }
+        
+        .progress {
+            width: 100%;
+            background: #ddd;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 20px;
+            background: #28a745;
+            text-align: center;
+            color: white;
+            line-height: 20px;
+        }
+        
+        button {
+            padding: 12px 25px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .loader {
+            text-align: center;
+            color: white;
+            font-size: 18px;
+            margin-top: 10px;
+        }
+        
+        .transcript-box {
+            max-height: 120px;
+            overflow-y: auto;
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        
+        footer {
+            text-align: center;
+            color: white;
+            margin: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1><i class="fa-solid fa-headset"></i> AI Call Compliance Dashboard</h1>
+
+    <div class="container">
+
+        <input type="file" id="file">
+        <button onclick="send()">
+        <i class="fa-solid fa-play"></i> Analyze Call
+    </button>
+
+        <div id="loading" class="loader"></div>
+        <div id="output"></div>
+
+    </div>
+
+    <footer>
+        <i class="fa-solid fa-rocket"></i> Built with FastAPI + Whisper + NLP
+    </footer>
+
+    <script>
+        async function send() {
+
+            document.getElementById("loading").innerHTML =
+                "<i class='fa-solid fa-spinner fa-spin'></i> Processing AI...";
+            document.getElementById("output").innerHTML = "";
+
+            let file = document.getElementById("file").files[0];
+            let formData = new FormData();
+            formData.append("file", file);
+
+            let res = await fetch("http://127.0.0.1:8000/analyze-call", {
+                method: "POST",
+                body: formData
+            });
+
+            let data = await res.json();
+
+            document.getElementById("loading").innerHTML =
+                "<i class='fa-solid fa-check'></i> Analysis Complete";
+
+            // Highlight important words
+            data.summary = data.summary.replace(/payment|loan|money|financial/gi,
+                '<b style="color:red">$&</b>');
+
+            let sop = data.sop_compliance;
+
+            let score = 0;
+            if (sop.greeting) score++;
+            if (sop.introduction) score++;
+            if (sop.payment_discussion) score++;
+
+            let percent = (score / 3) * 100;
+
+            document.getElementById("output").innerHTML = `
+
+        <div class="card">
+            <div class="section-title">
+                <i class="fa-solid fa-phone"></i> Call Analysis
+            </div>
+
+            <p><b>Transcript:</b></p>
+            <div class="transcript-box">${data.transcript}</div>
+
+            <p><b>Summary:</b> ${data.summary}</p>
+        </div>
+
+        <div class="card">
+            <div class="section-title">
+                <i class="fa-solid fa-chart-line"></i> Compliance Score
+            </div>
+
+            <div class="progress">
+                <div class="progress-bar" style="width:${percent}%">
+                    ${percent}%
+                </div>
+            </div>
+
+            <br>
+
+            <span class="badge ${sop.greeting ? 'green':'red'}">
+                <i class="fa-solid fa-handshake"></i> Greeting
+            </span>
+
+            <span class="badge ${sop.introduction ? 'green':'red'}">
+                <i class="fa-solid fa-user"></i> Introduction
+            </span>
+
+            <span class="badge ${sop.payment_discussion ? 'green':'red'}">
+                <i class="fa-solid fa-money-bill"></i> Payment
+            </span>
+        </div>
+
+        <div class="card">
+            <div class="section-title">
+                <i class="fa-solid fa-wallet"></i> Payment Insight
+            </div>
+
+            <span class="badge blue">
+                <i class="fa-solid fa-coins"></i> ${data.payment_type}
+            </span>
+        </div>
+
+        <div class="card">
+            <div class="section-title">
+                <i class="fa-solid fa-triangle-exclamation"></i> Customer Response
+            </div>
+
+            <span class="badge orange">
+                <i class="fa-solid fa-comment-dots"></i> ${data.rejection_reason}
+            </span>
+        </div>
+
+        <div class="card keywords">
+            <div class="section-title">
+                <i class="fa-solid fa-key"></i> Key Insights
+            </div>
+
+            ${data.keywords.map(k =>
+                `<span><i class="fa-solid fa-tag"></i> ${k}</span>`
+            ).join('')}
+        </div>
+    `;
+}
+    </script>
+
+</body>
+
+</html>
